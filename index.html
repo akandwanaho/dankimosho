@@ -196,15 +196,27 @@
     }
 
     .button{
-      padding:16px 36px;
-      border-radius:10px;
-      background:var(--yellow);
-      border:none;
-      font-weight:800;
-      cursor:pointer;
-      box-shadow:0 10px 24px rgba(0,0,0,.22);
-      transition:transform .2s, box-shadow .2s;
-    }
+  padding:16px 36px;
+  border-radius:10px;
+  background:var(--yellow);
+  border:none;
+  font-weight:800;
+  cursor:pointer;
+  box-shadow:0 10px 24px rgba(0,0,0,.22);
+  transition:transform .2s, box-shadow .2s;
+
+  color:#000;                 /* 👈 FORCE TEXT COLOR */
+  -webkit-appearance:none;    /* 👈 DISABLE iOS BLUE */
+  appearance:none;
+}
+
+.button:disabled{
+  color:#000 !important;
+  background:var(--yellow);
+  opacity:0.8;
+  cursor:default;
+}
+
 
     .button:hover{
       transform:translateY(-2px);
@@ -322,11 +334,13 @@
   padding: 24px 14px;
 }
 
+
 .container {
-  padding: 28px 22px;
-  border-radius: 14px;
-  box-shadow: 0 18px 40px rgba(0,0,0,.25);
-}
+    max-height: 62vh;          /* 👈 SHORTER, KEY FIX */
+    padding: 20px 18px;
+    overflow-y: auto;          /* internal scroll */
+    border-radius: 16px;
+  }
 
 h1 {
   font-size: 1.9rem;
@@ -376,7 +390,7 @@ p {
 .countdown {
   flex-wrap: wrap;
   gap: 12px;
-  margin-top: 20px;
+  margin-top: 16px;
 }
 
 .time-box {
@@ -385,10 +399,72 @@ p {
 }
 
 footer {
-  margin-top: 26px;
+  margin-top: 18px;
   font-size: 0.8rem;
 }
 }
+
+
+
+
+/* =========================
+   SMALL PHONE FIX (COUNTDOWN)
+   ========================= */
+   @media (max-width: 380px) {
+
+.countdown {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.time-box {
+  min-width: 46%;
+  padding: 8px 10px;
+  border-radius: 10px;
+}
+
+.time-box span {
+  font-size: 1.2rem;
+}
+
+.time-box small {
+  font-size: 0.65rem;
+}
+}
+
+
+/* =========================
+   SCROLL REVEAL ANIMATIONS
+   ========================= */
+   .reveal {
+  opacity: 0;
+  transform: translateY(18px) scale(0.98);
+  transition:
+    opacity 0.8s ease-out,
+    transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: opacity, transform;
+}
+
+
+.reveal.show {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* Variations */
+.reveal-left {
+  transform: translateX(-24px);
+}
+
+.reveal-right {
+  transform: translateX(24px);
+}
+
+.reveal-left.show,
+.reveal-right.show {
+  transform: translateX(0);
+}
+
 
 
 
@@ -414,18 +490,19 @@ footer {
       </div>
     </div>
 
-    <h1>My MP, My Choice</h1>
-    <h2>Kazo County Member of Parliament, Uganda</h2>
+    
+    <h1 class="reveal">My MP, My Choice</h1>
+    <h2 class="reveal">Kazo County Member of Parliament, Uganda</h2>
 
-    <p>
+    <p class="reveal">
       Welcome to Hon. Dan Kimosho's site where the people of Kazo can express their support through open and transparent participation.
     </p>
 
-    <button class="button" id="supportBtn">I Support / I Endorse</button>
+    <button class="button reveal" id="supportBtn">I Support / I Endorse</button>
 
 
     <!-- Support Progress -->
-<div class="support-section">
+    <div class="support-section reveal reveal-left">
     <div class="support-header">
       <span>Kazo has spoken</span>
       <strong><span id="supportPercent">63</span>%</strong>
@@ -436,7 +513,7 @@ footer {
     </div>
   
     <div class="support-count">
-      <strong><span id="supportCount">1,249</span></strong> citizens have spoken
+      <strong><span id="supportCount">1,249</span></strong> people of Kazo have spoken
     </div>
   </div>
   
@@ -446,14 +523,14 @@ footer {
     </div>
 
     <!-- Countdown -->
-    <div class="countdown">
+    <div class="countdown reveal">
       <div class="time-box"><span id="days">0</span><small>Days</small></div>
       <div class="time-box"><span id="hours">0</span><small>Hours</small></div>
       <div class="time-box"><span id="minutes">0</span><small>Minutes</small></div>
       <div class="time-box"><span id="seconds">0</span><small>Seconds</small></div>
     </div>
 
-    <footer>
+    <footer class="reveal">
       © 2025 <strong>dankimosho.com</strong>. All rights reserved.
     </footer>
 
@@ -501,6 +578,27 @@ footer {
     document.getElementById("supportBtn").disabled = true;
     document.getElementById("supportBtn").style.opacity = 0.8;
   });
+
+
+
+
+  const revealElements = document.querySelectorAll(".reveal");
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("show");
+        }
+      });
+    },
+    {
+      root: document.querySelector(".container"), // 👈 IMPORTANT
+      threshold: 0.15
+    }
+  );
+
+  revealElements.forEach(el => observer.observe(el));
 
 
 </script>
