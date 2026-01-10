@@ -538,69 +538,171 @@ footer {
 </section>
 
 <script>
-  const target = new Date("January 15, 2026 00:00:00").getTime();
-
-  setInterval(() => {
-    const now = new Date().getTime();
-    const diff = target - now;
-
-    if (diff < 0) return;
-
-    document.getElementById("days").innerText = Math.floor(diff / (1000 * 60 * 60 * 24));
-    document.getElementById("hours").innerText = Math.floor((diff / (1000 * 60 * 60)) % 24);
-    document.getElementById("minutes").innerText = Math.floor((diff / 1000 / 60) % 60);
-    document.getElementById("seconds").innerText = Math.floor((diff / 1000) % 60);
-  }, 1000);
-
-
-  const TOTAL_TARGET = 2000; // symbolic participation goal
-
-  let supporters = localStorage.getItem("supporters")
-    ? parseInt(localStorage.getItem("supporters"))
-    : 1249;
-
-  function updateSupport(){
-    const percent = Math.min(Math.round((supporters / TOTAL_TARGET) * 100), 100);
-    document.getElementById("supportCount").innerText = supporters.toLocaleString();
-    document.getElementById("supportPercent").innerText = percent;
-    document.getElementById("supportFill").style.width = percent + "%";
-  }
-
-  updateSupport();
-
-  document.getElementById("supportBtn").addEventListener("click", () => {
-    supporters += 1;
-    localStorage.setItem("supporters", supporters);
-    updateSupport();
-
-    // subtle feedback
-    document.getElementById("supportBtn").innerText = "Thank you for your support";
-    document.getElementById("supportBtn").disabled = true;
-    document.getElementById("supportBtn").style.opacity = 0.8;
-  });
-
-
-
-
-  const revealElements = document.querySelectorAll(".reveal");
-
-  const observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add("show");
+    const target = new Date("January 15, 2026 00:00:00").getTime();
+  
+    setInterval(() => {
+      const now = new Date().getTime();
+      const diff = target - now;
+  
+      if (diff < 0) return;
+  
+      document.getElementById("days").innerText = Math.floor(diff / (1000 * 60 * 60 * 24));
+      document.getElementById("hours").innerText = Math.floor((diff / (1000 * 60 * 60)) % 24);
+      document.getElementById("minutes").innerText = Math.floor((diff / 1000 / 60) % 60);
+      document.getElementById("seconds").innerText = Math.floor((diff / 1000) % 60);
+    }, 1000);
+  
+  
+    /****************************************************
+     * ✅ GLOBAL SUPPORT COUNTER (SUPABASE ATOMIC + REALTIME)
+     ****************************************************/
+  
+    const SUPABASE_URL = "https://wcreognffyfiheiwjpcx.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjcmVvZ25mZnlmaWhlaXdqcGN4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgwMTc1MTksImV4cCI6MjA4MzU5MzUxOX0.EEfD3V3ERNwf65pvv0umsTxXdg5D9HYyxURLdL-hPzQ";
+  
+    const TOTAL_TARGET = 2000; // symbolic participation goal
+  
+    async function fetchSupporters(){
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/support_counter?id=eq.1&select=supporters`, {
+        method: "GET",
+        headers: {
+          "apikey": SUPABASE_ANON_KEY,
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+          "Content-Type": "application/json",
+          "Accept": "application/json"
         }
       });
-    },
-    {
-      root: document.querySelector(".container"), // 👈 IMPORTANT
-      threshold: 0.15
+  
+      const data = await res.json();
+      return data?.[0]?.supporters ?? 1249;
     }
-  );
+  
+    function updateSupportUI(supporters){
+      const percent = Math.min(Math.round((supporters / TOTAL_TARGET) * 100), 100);
+  
+      document.getElementById("supportCount").innerText = supporters.toLocaleString();
+      document.getElementById("supportPercent").innerText = percent;
+      document.getElementById("supportFill").style.width = percent + "%";
+    }
+  
+    /****************************************************
+     * ✅ ATOMIC INCREMENT (RPC)
+     * Calls Supabase function: increment_support()
+     ****************************************************/
+    async function incrementSupporters(){
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_support`, {
+        method: "POST",
+        headers: {
+          "apikey": SUPABASE_ANON_KEY,
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify({}) // no args
+      });
+  
+      const data = await res.json();
+      // data returns like: [{ supporters: 1250 }]
+      return data?.[0]?.supporters ?? null;
+    }
+  
+    // Initial load
+    (async function initSupport(){
+      const supporters = await fetchSupporters();
+      updateSupportUI(supporters);
+  
+      // prevent repeated clicking per device
+      if(localStorage.getItem("already_supported") === "yes"){
+        const btn = document.getElementById("supportBtn");
+        btn.innerText = "Thank you for your support";
+        btn.disabled = true;
+        btn.style.opacity = 0.8;
+      }
+    })();
+  
+    // Button click (atomic global)
+    document.getElementById("supportBtn").addEventListener("click", async () => {
+      const btn = document.getElementById("supportBtn");
+  
+      btn.disabled = true;
+      btn.innerText = "Submitting...";
+  
+      try{
+        const updatedSupporters = await incrementSupporters();
+  
+        // If RPC returns null (rare), fallback to fetch
+        if(updatedSupporters === null){
+          const supporters = await fetchSupporters();
+          updateSupportUI(supporters);
+        } else {
+          updateSupportUI(updatedSupporters);
+        }
+  
+        btn.innerText = "Thank you for your support";
+        btn.style.opacity = 0.8;
+        localStorage.setItem("already_supported", "yes");
+  
+      } catch(err){
+        console.error(err);
+        alert("Network issue. Please try again.");
+  
+        btn.disabled = false;
+        btn.innerText = "I Support / I Endorse";
+      }
+    });
+  
+    /****************************************************
+     * ✅ REALTIME LISTENER (Instant Global Updates)
+     ****************************************************/
+  
+    const realtimeScript = document.createElement("script");
+    realtimeScript.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+  
+    realtimeScript.onload = () => {
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  
+      supabase
+        .channel("support_counter_channel")
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "support_counter" },
+          (payload) => {
+            const newSupporters = payload.new?.supporters;
+            if (newSupporters !== undefined) {
+              updateSupportUI(newSupporters);
+            }
+          }
+        )
+        .subscribe();
+    };
+  
+    document.head.appendChild(realtimeScript);
+  
+  
+  
+    /****************************************************
+     * SCROLL REVEAL INSIDE CONTAINER
+     ****************************************************/
+    const revealElements = document.querySelectorAll(".reveal");
+  
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("show");
+          }
+        });
+      },
+      {
+        root: document.querySelector(".container"),
+        threshold: 0.15
+      }
+    );
+  
+    revealElements.forEach(el => observer.observe(el));
+  </script>
+  
+  
 
-  revealElements.forEach(el => observer.observe(el));
-
-
-</script>
 </body>
 </html>
